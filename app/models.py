@@ -15,3 +15,20 @@ class SkillResponse(BaseModel):
                                                     #dice questi dati non vengono  da un dizionario
                                                     #ma da sqlAlchemy se non da errore
                                                     #fare una cartella dove ci sono i controller per far vedere i get al frontend
+
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    name: str
+    email: str
+
+class UserSkillCreate(BaseModel):
+    user_id: int
+    skill_id: int
+    level: str # Es: "Principiante", "Intermedio", "Avanzato"

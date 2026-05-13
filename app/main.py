@@ -31,3 +31,56 @@ def root():
 def get_skills(db: Session = Depends(get_db)):#passa la connesione del db
     skills = db.query(Skill).all() #va nel db e prende le righe di skill e le restituisce
     return skills
+
+@app.post("/users", response_model=models.UserResponse)
+def create_user(user: models.UserCreate, db: Session = Depends(get_db)):
+    # 1. Controlliamo se l'email esiste già per evitare errori nel DB
+    db_user = db.query(db_models.User).filter(db_models.User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email già registrata")
+    
+    # 2. Trasformiamo i dati di Pydantic in un oggetto SQLAlchemy
+    new_user = db_models.User(
+        name=user.name,
+        email=user.email,
+        password=user.password # Ricorda: nel db_models si chiama 'password'
+    )
+    
+    # 3. Salvataggio nel database
+    db.add(new_user)      # Aggiunge alla "lista d'attesa"
+    db.commit()           # Scrive fisicamente sul file .db
+    db.refresh(new_user)  # Recupera l'ID generato dal database
+    
+    return new_user
+
+@app.post("/users/skills")
+def add_skill_to_user(data: models.UserSkillCreate, db: Session = Depends(get_db)):
+    # Creiamo il legame nella tabella ponte
+    new_association = db_models.UserSkill(
+        user_id=data.user_id,
+        skill_id=data.skill_id,
+        level=data.level
+    )
+    db.add(new_association)
+    db.commit()
+    return {"message": "Skill associata correttamente"}
+
+@app.post("/skills/seed")
+def seed_skills(db: Session = Depends(get_db)):
+    initial_skills = [
+        {"name": "Java", "description": "Linguaggio di programmazione ad oggetti"},
+        {"name": "PHP", "description": "Linguaggio per lo sviluppo web lato server"},
+        {"name": "Android Studio", "description": "IDE per lo sviluppo di app mobile"},
+        {"name": "Python", "description": "Linguaggio versatile per AI e Backend"},
+        {"name": "Figma", "description": "Strumento per il design di interfacce"}
+    ]
+    
+    for s in initial_skills:
+        # Controlliamo se la skill esiste già per non creare duplicati
+        exists = db.query(db_models.Skill).filter(db_models.Skill.name == s["name"]).first()
+        if not exists:
+            new_skill = db_models.Skill(name=s["name"], description=s["description"])
+            db.add(new_skill)
+    
+    db.commit()
+    return {"message": "Database popolato con le skill iniziali"}
