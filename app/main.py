@@ -19,7 +19,7 @@ get_db= la funzione che abbiamo gia in database.py che apre e chiude la connesio
 
 db_model=importa le tabelle che ho creato in db_model
 """
-db_models.Base.metadata.create_all(bind=engine) # serve a crearele tabelle se non ci sono si altrimenti no
+db_models.Base.metadata.create_all(bind=engine) # serve a creare le tabelle se non ci sono si altrimenti no
 
 @app.get("/", response_model=StatusResponse)
 def root():
