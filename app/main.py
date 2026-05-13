@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.models import StatusResponse, SkillResponse, UserCreate, UserResponse, UserSkillCreate
 from app.database import get_db, engine
 from app.db_models import Skill
-
+from app.models import StatusResponse, SkillResponse, SkillCreate, UserCreate, UserResponse, UserSkillCreate
 
 app = FastAPI(title="SkillSwap API", version="0.1.0")
 """
@@ -66,6 +66,24 @@ def add_skill_to_user(data: UserSkillCreate, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Skill associata correttamente"}
 
+@app.post("/skills", response_model=SkillResponse)
+def create_skill(skill: SkillCreate, db: Session = Depends(get_db)):
+    # controlla se esiste già
+    exists = db.query(db_models.Skill).filter(
+        db_models.Skill.name == skill.name
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Skill già esistente")
+    
+    nuova_skill = db_models.Skill(
+        name=skill.name,
+        description=skill.description
+    )
+    db.add(nuova_skill)
+    db.commit()
+    db.refresh(nuova_skill)
+    return nuova_skill
+"""
 @app.post("/skills/seed")
 def seed_skills(db: Session = Depends(get_db)):
     initial_skills = [
@@ -85,3 +103,4 @@ def seed_skills(db: Session = Depends(get_db)):
     
     db.commit()
     return {"message": "Database popolato con le skill iniziali"}
+"""
