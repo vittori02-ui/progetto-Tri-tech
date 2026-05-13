@@ -32,3 +32,19 @@ class UserSkillCreate(BaseModel):
     user_id: int
     skill_id: int
     level: str # Es: "Principiante", "Intermedio", "Avanzato"
+    type: str
+
+class SessionRequestCreate(BaseModel):
+    sender_id: int
+    receiver_id: int
+    skill_id: int
+    message: str | None = None
+
+class SessionRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    sender_id: int
+    receiver_id: int
+    skill_id: int
+    status: str
+    message: str

@@ -39,3 +39,13 @@ class UserSkill(Base):
 
 
 Base.metadata.create_all(bind=engine)
+
+class SessionRequest(Base):
+    __tablename__ = "session_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("sender.id"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    skill_id = Column(Integer, ForeignKey("skills.id"), nullable=False)
+    status = Column(String, default="pending")  # Può essere: pending, accepted, rejected
+    message = Column(String, default="")
