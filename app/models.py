@@ -48,3 +48,7 @@ class SessionRequestResponse(BaseModel):
     skill_id: int
     status: str
     message: str
+
+class SkillCreate(BaseModel):
+    name: str
+    description: str | None = None
