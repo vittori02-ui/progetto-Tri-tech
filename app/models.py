@@ -6,9 +6,12 @@ class StatusResponse(BaseModel):
     message: str
 
 
-class SkillResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
+class SkillResponse(BaseModel):  
+    #checcare per che è cosi con l'ordine diverso
+    id: int #accetta un intero e sotto una stringa
     name: str
-    description: str
+    description: str|None="Inserisci qualcosa"
+    model_config = ConfigDict(from_attributes=True) #riga importante dice a pydantic
+                                                    #dice questi dati non vengono  da un dizionario
+                                                    #ma da sqlAlchemy se non da errore
+                                                    #fare una cartella dove ci sono i controller per far vedere i get al frontend
