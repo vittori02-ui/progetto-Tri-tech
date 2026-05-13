@@ -3,9 +3,8 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 #è l'entry point del programma delle API
 from app.models import StatusResponse, SkillResponse
-from app.database import get_db
+from app.database import get_db,engine
 from app.db_models import Skill
-from fastapi import FastAPI
 
 app = FastAPI(title="SkillSwap API", version="0.1.0")
 """
