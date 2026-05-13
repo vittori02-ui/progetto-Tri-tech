@@ -1,11 +1,11 @@
 from app import db_models
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 #è l'entry point del programma delle API
-from app.models import StatusResponse, SkillResponse
-from app.database import get_db
+from app.models import StatusResponse, SkillResponse, UserCreate, UserResponse, UserSkillCreate
+from app.database import get_db, engine
 from app.db_models import Skill
-from fastapi import FastAPI
+
 
 app = FastAPI(title="SkillSwap API", version="0.1.0")
 """
@@ -32,8 +32,8 @@ def get_skills(db: Session = Depends(get_db)):#passa la connesione del db
     skills = db.query(Skill).all() #va nel db e prende le righe di skill e le restituisce
     return skills
 
-@app.post("/users", response_model=models.UserResponse)
-def create_user(user: models.UserCreate, db: Session = Depends(get_db)):
+@app.post("/users", response_model=UserResponse)
+def create_user(user: UserCreate, db: Session = Depends(get_db)):
     # 1. Controlliamo se l'email esiste già per evitare errori nel DB
     db_user = db.query(db_models.User).filter(db_models.User.email == user.email).first()
     if db_user:
@@ -54,12 +54,13 @@ def create_user(user: models.UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @app.post("/users/skills")
-def add_skill_to_user(data: models.UserSkillCreate, db: Session = Depends(get_db)):
+def add_skill_to_user(data: UserSkillCreate, db: Session = Depends(get_db)):
     # Creiamo il legame nella tabella ponte
     new_association = db_models.UserSkill(
         user_id=data.user_id,
         skill_id=data.skill_id,
-        level=data.level
+        level=data.level,
+        type=data.type
     )
     db.add(new_association)
     db.commit()
