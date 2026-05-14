@@ -55,7 +55,26 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/users/skills")
 def add_skill_to_user(data: UserSkillCreate, db: Session = Depends(get_db)):
-    # Creiamo il legame nella tabella ponte
+    
+    # 1. Controlla che l'utente esista
+    user = db.query(db_models.User).filter(db_models.User.id == data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utente non trovato")  #messaggio di errore
+    
+    # 2. Controlla che la skill esista
+    skill = db.query(db_models.Skill).filter(db_models.Skill.id == data.skill_id).first()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill non trovata")  #messaggio di errore
+    
+    # 3. Controlla che l'associazione non esista già
+    exists = db.query(db_models.UserSkill).filter(
+        db_models.UserSkill.user_id == data.user_id,
+        db_models.UserSkill.skill_id == data.skill_id
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Skill già associata a questo utente") #altro messaggio
+
+    # 4. Crea il collegamento
     new_association = db_models.UserSkill(
         user_id=data.user_id,
         skill_id=data.skill_id,
@@ -65,6 +84,7 @@ def add_skill_to_user(data: UserSkillCreate, db: Session = Depends(get_db)):
     db.add(new_association)
     db.commit()
     return {"message": "Skill associata correttamente"}
+
 
 @app.post("/skills", response_model=SkillResponse)
 def create_skill(skill: SkillCreate, db: Session = Depends(get_db)):

@@ -14,7 +14,7 @@ class User(Base):
     date =Column(DateTime, default=datetime.now) #crea una colonna per la data e l'ora se non viene passato nulla la mette in automatico
     user_skills = relationship("UserSkill", back_populates="user")
     sent_requests=relationship("SessionRequest",foreign_keys="SessionRequest.sender_id",back_populates="sender")
-    eceived_requests = relationship("SessionRequest", foreign_keys="SessionRequest.receiver_id", back_populates="sender")
+    received_requests = relationship("SessionRequest", foreign_keys="SessionRequest.receiver_id", back_populates="receiver")
 
 
 class Skill(Base):
@@ -47,7 +47,10 @@ class SessionRequest(Base):
     status = Column(String, default="pending")  # Può essere: pending, accepted, rejected
     #message = Column(String, default="")
     date=Column(DateTime,default=datetime.now)
-    sender=relationship("User",foreign_keys=[sender_id],back_populates="sender")
-    receiver=relationship("User",foreign_keys=[receiver_id],back_populates="receiver")
+    sender=relationship("User",foreign_keys=[sender_id],back_populates="sent_requests")
+    receiver=relationship("User",foreign_keys=[receiver_id],back_populates="received_requests")
 
 Base.metadata.create_all(bind=engine)
+
+
+#repository anche quelle cose che comunicano con il database
