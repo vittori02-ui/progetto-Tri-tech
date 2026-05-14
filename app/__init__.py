@@ -1,1 +1,1 @@
-#rende app un pachetto python
+# Pacchetto app - contiene tutta la logica del backend FastAPI

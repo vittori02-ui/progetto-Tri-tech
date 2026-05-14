@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 from app import db_models
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,23 +7,108 @@ from app.models import StatusResponse, SkillResponse, UserCreate, UserResponse, 
 from app.database import get_db, engine
 from app.db_models import Skill
 from app.models import StatusResponse, SkillResponse, SkillCreate, UserCreate, UserResponse, UserSkillCreate
+=======
+# ============================================================
+# main.py - Entry point dell'applicazione FastAPI
+# ============================================================
 
-app = FastAPI(title="SkillSwap API", version="0.1.0")
-"""
-Import
-Depends=dice a fast API che una funzione dipende da 
-qualcosa in questo caso il database(db)
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+>>>>>>> Stashed changes
 
-Session=è il tipo della connesione del database
+# Import del database e modelli (engine serve per create_all)
+from app.database import engine
+from app.db_models import Base
 
-get_db= la funzione che abbiamo gia in database.py che apre e chiude la connesione
+# Import dei router
+from app.routers import auth, skills, users
 
-db_model=importa le tabelle che ho creato in db_model
-"""
-db_models.Base.metadata.create_all(bind=engine) # serve a creare le tabelle se non ci sono si altrimenti no
 
-@app.get("/", response_model=StatusResponse)
+# ============================================================
+# Lifespan: codice eseguito all'avvio e allo spegnimento
+# ============================================================
+# "lifespan" è il metodo MODERNO di FastAPI per gestire startup/shutdown.
+# Prima si usava @app.on_event("startup") / @app.on_event("shutdown"),
+# ma quel metodo è deprecato dalla versione 0.95+.
+#
+# asynccontextmanager trasforma una funzione in un "gestore di contesto"
+# asincrono. Il codice PRIMA di "yield" gira all'avvio,
+# il codice DOPO "yield" gira allo spegnimento.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ============================================================
+    # STARTUP: crea le tabelle del database se non esistono
+    # ============================================================
+    # ⚠️ PRIMA era in db_models.py a livello di modulo.
+    #    Ogni volta che importavi db_models, partiva create_all().
+    #    Con --reload (modalità sviluppo) veniva chiamato decine di volte.
+    # ORA: viene chiamato UNA SOLA VOLTA quando l'app parte.
+    Base.metadata.create_all(bind=engine)
+    yield
+    # ============================================================
+    # SHUTDOWN: (libero per pulizia connessioni, file temporanei, ecc.)
+    # ============================================================
+
+
+# ============================================================
+# Inizializzazione app FastAPI
+# ============================================================
+app = FastAPI(
+    title="SkillSwap API",
+    version="0.2.0",
+    description="API per lo scambio di competenze tra utenti",
+    lifespan=lifespan,  # 👈 Collega il lifespan all'app
+)
+
+# ============================================================
+# CORS Middleware
+# ============================================================
+# CORS = Cross-Origin Resource Sharing
+# 
+# 🔍 COS'È IL PROBLEMA?
+# Il browser blocca le richieste del frontend al backend se vengono
+# da ORIGINI DIVERSE (dominio, protocollo o porta diversi).
+# Esempio: il frontend su http://localhost:5173 chiama
+# il backend su http://localhost:8000 → ORIGINI DIVERSE! Bloccato.
+#
+# 🛠️ COSA FA QUESTO MIDDLEWARE?
+# Dice al browser: "Ehi, queste origini qui sotto sono autorizzate
+# a parlare con la mia API, non bloccare le richieste!"
+#
+# ⚠️ NOTA SU allow_origins=["*"]:
+# Con "*" PERMETTI TUTTE le origini. Va bene per sviluppo / demo
+# ma NON in produzione perché chiunque può chiamare la tua API.
+# In produzione usa una lista di origini specifiche.
+# ============================================================
+app.add_middleware(
+    CORSMiddleware,
+    # ["*"] = permetti richieste DA OVUNQUE (qualsiasi origine)
+    allow_origins=["*"],
+    # ⚠️ NOTA: se usi true toglierà il commento a allow_origins=["http://localhost:5173"]
+    # perché ["*"] e credentials=True non possono coesistere (errore).
+    allow_credentials=False,
+    # ["*"] = permetti TUTTI i metodi HTTP (GET, POST, PUT, DELETE, PATCH, ecc.)
+    allow_methods=["*"],
+    # ["*"] = permetti TUTTI gli header (Content-Type, Authorization, ecc.)
+    allow_headers=["*"],
+)
+
+# ============================================================
+# Inclusione dei router
+# Ogni router gestisce un dominio specifico dell'applicazione
+# ============================================================
+app.include_router(auth.router)   # /auth/register, /auth/login, /auth/me, /auth/profile
+app.include_router(skills.router) # /skills/, /skills/my
+app.include_router(users.router)  # /users/public/{id}, /users/search, /users/stats
+
+
+# ============================================================
+# Endpoint: GET / (health check)
+# ============================================================
+@app.get("/", response_model=dict)
 def root():
+<<<<<<< Updated upstream
     #ritorna lo stato se il server è acceso e funzionante
     return StatusResponse(status="ok", message="SkillSwap API is running")
 
@@ -124,3 +210,14 @@ def seed_skills(db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Database popolato con le skill iniziali"}
 """
+=======
+    """
+    Endpoint di health check.
+    Restituisce lo stato del server per verificare che sia in esecuzione.
+    """
+    return {
+        "status": "ok",
+        "message": "SkillSwap API is running",
+        "version": "0.2.0",
+    }
+>>>>>>> Stashed changes

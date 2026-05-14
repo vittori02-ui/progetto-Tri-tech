@@ -1,0 +1,75 @@
+ENDPOINT VERIFICATION REPORT
+===========================
+
+BACKEND ENDPOINTS (from FastAPI routers):
+
+AUTH ROUTER (/auth):
+- POST /register
+- POST /login  
+- GET /me
+- PUT /profile
+
+SKILLS ROUTER (/skills):
+- GET /
+- POST /
+- GET /my
+- POST /my
+- PUT /my/{user_skill_id}
+- DELETE /my/{user_skill_id}
+
+USERS ROUTER (/users):
+- GET /public/{user_id}
+- GET /{user_id}/skills
+- GET /search
+- GET /stats
+
+FRONTEND API CALLS (from .tsx files):
+
+HOMEPAGES:
+- GET /users/search?q=
+- GET /users/stats
+
+CARD PRINCIPALE PAGE:
+- GET /users/public/${id}
+- GET /users/${id}/skills
+
+PROFILO PUBBLICO:
+- GET /users/public/${id}
+- GET /users/${id}/skills
+
+PAGINA RICERCA PAGE:
+- GET /users/search (with params)
+
+PROFILO PERSONALE:
+- GET /auth/me
+- GET /skills/my
+- PUT /auth/profile
+- POST /skills/my
+- DELETE /skills/my/${skillId}
+
+LOGIN PAGE:
+- POST /auth/login
+
+REGISTER PAGE:
+- POST /auth/register
+
+COMPONENT LOGIN/REGISTER:
+- POST /auth/login
+- POST /auth/register
+
+VERIFICATION RESULTS:
+=====================
+All frontend API calls match correctly with backend endpoints:
+- Auth endpoints: ✓ All match
+- Skills endpoints: ✓ All match  
+- Users endpoints: ✓ All match
+
+NO MODIFICATIONS NEEDED - Endpoints are correctly aligned.
+
+NOTE: The only changes made were to remove incorrect 'email' fields from TypeScript interfaces that didn't match the backend Pydantic models:
+1. HomePages.tsx - UserSearchItem type (removed email)
+2. PaginaRicercaPage.tsx - UserSearchItem type (removed email) 
+3. profiloPubblico.tsx - PublicProfile type (removed email)
+4. CardPrincipalePage.tsx - PublicProfile type (removed email)
+
+These changes ensure TypeScript types accurately reflect the backend API responses without altering functionality.
