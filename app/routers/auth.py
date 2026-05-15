@@ -1,149 +1,125 @@
-# ============================================================
-# Router: Autenticazione (registrazione, login, profilo corrente)
-# ============================================================
-import os
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+# auth.py = ROTTE PER REGISTRAZIONE E LOGIN
+# Tutti gli endpoint iniziano con /auth
+
+import os                                   # Per leggere variabili d'ambiente
+from datetime import datetime, timedelta, timezone  # Per gestire date e scadenze
+from typing import Optional                 # Optional = il valore puo' essere None
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
-from sqlalchemy.orm import Session
+# APIRouter = gruppo di endpoint con prefisso comune (/auth)
+# Depends = per iniettare il database negli endpoint
+# HTTPException = per restituire errori HTTP (401, 404, 409...)
+# Header = per leggere l'header Authorization della richiesta
+# status = codici HTTP (200=OK, 201=Creato, 401=Non autorizzato, ecc.)
 
-# Import dei modelli del database (SQLAlchemy) e Pydantic
-from app.database import get_db
-from app.db_models import User
+from sqlalchemy.orm import Session         # Il tipo "sessione del database"
+
+from app.database import get_db             # Funzione per ottenere una sessione DB
+from app.db_models import User              # Modello della tabella users
 from app.models import (
-    UserRegister,
-    UserLogin,
-    TokenResponse,
-    UserMeResponse,
-    UserProfileUpdate,
+    UserRegister, UserLogin, TokenResponse,
+    UserMeResponse, UserProfileUpdate,
 )
 
-# Librerie per hash password e JWT
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+from passlib.context import CryptContext    # Per hashare le password con bcrypt
+from jose import JWTError, jwt              # Per creare e verificare token JWT
+
 
 # ============================================================
-# Configurazione JWT
+# CONFIGURAZIONE JWT (il "timbro" che identifica l'utente)
 # ============================================================
-# 👇 PRIMA: SECRET_KEY era hardcoded qui (brutta abitudine).
-# ORA: legge da variabile d'ambiente (se esiste), altrimenti usa
-#      un default per sviluppo.
-#      In produzione, basta impostare:
-#        set SKILLSWAP_SECRET_KEY=la-tua-chiave-sicura
-#      (o metterla in un file .env)
+# JWT = JSON Web Token. E' come un "badge digitale" che dice "questo utente e' loggato".
+# Il token viene creato al login e scade dopo 24 ore.
 SECRET_KEY = os.getenv(
     "SKILLSWAP_SECRET_KEY",
-    "skillswap-secret-key-change-in-production-2026"  # fallback per sviluppo
+    "skillswap-secret-key-change-in-production-2026"  # Chiave per firmare i token (in produzione cambiala!)
 )
-ALGORITHM = "HS256"  # Algoritmo di firma
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Token valido 24 ore
+ALGORITHM = "HS256"                               # Algoritmo di sicurezza
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24             # Token valido 24 ore
+
 
 # ============================================================
-# Configurazione hash password
+# CONFIGURAZIONE HASH PASSWORD
 # ============================================================
-# Usa bcrypt per hashare le password in modo sicuro
+# bcrypt trasforma la password in un codice segreto (hash).
+# Anche se qualcuno ruba il database, non puo' leggere le password.
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 # ============================================================
-# Router
+# CREAZIONE DEL ROUTER
 # ============================================================
+# prefix="/auth" significa che TUTTI gli endpoint qui dentro
+# avranno il percorso /auth/... (es. /auth/register)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # ============================================================
-# Funzioni helper
+# FUNZIONI DI SUPPORTO (helper)
 # ============================================================
 
 def hash_password(password: str) -> str:
-    """Riceve una password in chiaro e restituisce l'hash bcrypt."""
+    """Prende una password in chiaro e restituisce l'hash (codice segreto)."""
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica se la password in chiaro corrisponde all'hash salvato."""
+    """Controlla se la password corrisponde all'hash salvato nel database."""
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Crea un token JWT firmato.
-    - data: dizionario con i claim (es. {"sub": user_id})
-    - expires_delta: durata opzionale del token
-    """
+    """Crea un token JWT (badge digitale). Il token contiene i dati dell'utente e scade dopo un po'."""
     to_encode = data.copy()
-    # Imposta la scadenza: ora + delta (o default 24h)
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    # Crea e firma il token JWT
+    to_encode.update({"exp": expire})   # Aggiunge la data di scadenza
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_current_user_id(token: str) -> int:
-    """
-    Decodifica il token JWT e restituisce l'ID utente.
-    Se il token non è valido o è scaduto, solleva eccezione.
-    """
-    credentials_exception = HTTPException(
+    """Legge il token JWT e restituisce l'ID dell'utente a cui appartiene.
+    Se il token e' falso o scaduto, da' errore 401 (non autorizzato)."""
+    cred_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Credenziali non valide o token scaduto.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # Decodifica il token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id = int(payload.get("sub"))   # "sub" = subject = ID utente
         if user_id is None:
-            raise credentials_exception
+            raise cred_exc
         return user_id
     except JWTError:
-        raise credentials_exception
+        raise cred_exc
 
 
 # ============================================================
-# Helper CONDIVISO: estrae user_id dall'header Authorization
+# Helper CONDIVISO (usato anche da altri router: skills, users, ecc.)
 # ============================================================
-# Questa funzione è identica in auth.py, skills.py e users.py.
-# PRIMA era copiata in ogni file → se cambiavi qualcosa dovevi
-# ricordarti di aggiornare TUTTE le copie (e qualche volta te ne
-# dimenticavi). Brutto.
-# ORA: sta SOLO qui, e gli altri router la importano.
 def _get_user_id(authorization: Optional[str]) -> int:
-    """
-    Prende l'header "Authorization: Bearer <token>"
-    e restituisce l'ID utente contenuto nel token JWT.
-    Se manca o è invalido → HTTPException 401.
-    """
+    """Prende l'header 'Authorization: Bearer <token>' e restituisce l'ID utente."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token mancante o formato non valido.",
         )
-    token = authorization.split(" ")[1]
+    token = authorization.split(" ")[1]   # Prende il token dopo "Bearer "
     return get_current_user_id(token)
 
 
 # ============================================================
-# Endpoint: POST /auth/register
+# ENDPOINT: POST /auth/register  (REGISTRAZIONE)
 # ============================================================
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    """
-    Registra un nuovo utente.
-    - Verifica che l'email non sia già registrata
-    - Hasha la password
-    - Salva l'utente nel database
-    - Restituisce un token JWT per login automatico post-registrazione
-    """
-    # Controlla se esiste già un utente con la stessa email
+    """Crea un nuovo account. Hasha la password, salva l'utente e restituisce un token JWT."""
+    # Controlla se l'email e' gia' usata da qualcun altro
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email già registrata. Prova a effettuare il login.",
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email gia' registrata.")
 
-    # Crea il nuovo utente con password hashata
+    # Crea l'utente con password hashata (mai in chiaro!)
     new_user = User(
         name=user_data.name,
         email=user_data.email,
@@ -151,104 +127,57 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
         bio="",
         location="",
     )
-    db.add(new_user)
-    db.commit()  # Salva nel database
+    db.add(new_user)      # Prepara l'inserimento
+    db.commit()           # Scrive nel database
     db.refresh(new_user)  # Aggiorna l'oggetto con l'ID generato
 
-    # Genera il token JWT per l'utente appena registrato
-    access_token = create_access_token(data={"sub": new_user.id})
+    # Crea il token per fare subito il login
+    access_token = create_access_token(data={"sub": str(new_user.id)})
 
-    # Restituisce il token + dati utente
-    return TokenResponse(
-        access_token=access_token,
-        user_id=new_user.id,
-        name=new_user.name,
-    )
+    return TokenResponse(access_token=access_token, user_id=new_user.id, name=new_user.name)
 
 
 # ============================================================
-# Endpoint: POST /auth/login
+# ENDPOINT: POST /auth/login  (LOGIN)
 # ============================================================
 @router.post("/login", response_model=TokenResponse)
 def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
-    """
-    Effettua il login.
-    - Cerca l'utente per email
-    - Verifica la password
-    - Restituisce un token JWT
-    """
-    # Cerca l'utente nel database tramite email
+    """Controlla email e password, se giuste restituisce un token JWT."""
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenziali errate. Email non trovata.",
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email non trovata.")
 
-    # Verifica la password
     if not verify_password(user_data.password, user.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenziali errate. Password sbagliata.",
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password sbagliata.")
 
-    # Genera il token JWT
-    access_token = create_access_token(data={"sub": user.id})
-
-    return TokenResponse(
-        access_token=access_token,
-        user_id=user.id,
-        name=user.name,
-    )
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return TokenResponse(access_token=access_token, user_id=user.id, name=user.name)
 
 
 # ============================================================
-# Endpoint: GET /auth/me (usa Header Authorization)
+# ENDPOINT: GET /auth/me  (PROFILO PERSONALE)
 # ============================================================
 @router.get("/me", response_model=UserMeResponse)
-def get_my_profile(
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
-):
-    """
-    Restituisce i dati dell'utente autenticato.
-    Legge il token dall'header 'Authorization: Bearer <token>'.
-    """
-    # 👇 Usa _get_user_id invece di riscrivere la logica ogni volta
-    user_id = _get_user_id(authorization)
-
-    # Cerca l'utente nel database
+def get_my_profile(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    """Restituisce i dati dell'utente loggato (nome, email, bio, ecc.)."""
+    user_id = _get_user_id(authorization)       # Legge il token e ottiene l'ID
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato.")
-
     return user
 
 
 # ============================================================
-# Endpoint: PUT /auth/profile (aggiorna bio, location, name)
+# ENDPOINT: PUT /auth/profile  (MODIFICA PROFILO)
 # ============================================================
 @router.put("/profile", response_model=UserMeResponse)
-def update_my_profile(
-    profile_data: UserProfileUpdate,
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
-):
-    """
-    Aggiorna i dati del profilo dell'utente autenticato.
-    Accetta bio, location, name (campi opzionali).
-    I campi non inviati non vengono sovrascritti (grazie ai Optional).
-    """
+def update_my_profile(profile_data: UserProfileUpdate, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    """Modifica bio, citta' o nome. Solo i campi inviati vengono cambiati."""
     user_id = _get_user_id(authorization)
-
-    # Cerca l'utente
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato.")
 
-    # Aggiorna solo i campi forniti (non null)
-    # 👇 pattern "solo se non è None": se il frontend non manda il campo,
-    #    Pydantic lo imposta a None e noi lo ignoriamo.
     if profile_data.bio is not None:
         user.bio = profile_data.bio
     if profile_data.location is not None:

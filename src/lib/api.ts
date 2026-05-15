@@ -1,7 +1,9 @@
 import axios from "axios";
 
+// Con Vite proxy (/auth, /skills, /users, ecc. vanno al backend)
+// In produzione, cambia VITE_API_URL con l'URL del backend
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
+  baseURL: import.meta.env.VITE_API_URL ?? "",
 });
 
 api.interceptors.request.use((config) => {

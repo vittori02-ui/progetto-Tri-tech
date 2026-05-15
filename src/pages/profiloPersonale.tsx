@@ -32,6 +32,7 @@ type UserSkillResponse = {
 type UserSkillPayload = {
   skill_name: string;
   level: string;
+  type: string;        // "offered" o "wanted"
 };
 
 // ============================================================
@@ -140,6 +141,7 @@ export default function ProfiloPersonale() {
       const payload: UserSkillPayload = {
         skill_name: newSkillName.trim(),
         level: newSkillLevel,
+        type: skillType === "offerte" ? "offered" : "wanted",
       };
 
       // POST /skills/my per creare l'associazione utente-skill
