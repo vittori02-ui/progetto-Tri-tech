@@ -121,12 +121,12 @@ def get_user_id_from_hash(auth_hash: str, db: Session) -> int:
 
 
 def _get_user_id(authorization: Optional[str], db: Session) -> int:
-    """Prende l'header 'Authorization: Hash <hash>' e restituisce l'ID utente
+    """Prende l'header 'Authorization: Bearer <hash>' e restituisce l'ID utente
     confrontando l'hash con quello salvato nel database."""
-    if not authorization or not authorization.startswith("Hash "):
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Hash mancante o formato non valido. Usa: 'Authorization: Hash <tuo_hash>'",
+            detail="Token mancante o formato non valido. Usa: 'Authorization: Bearer <tuo_hash>'",
         )
     auth_hash = authorization.split(" ")[1]
     return get_user_id_from_hash(auth_hash, db)

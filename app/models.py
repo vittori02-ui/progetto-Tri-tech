@@ -34,13 +34,10 @@ class SkillResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)  # Permette di crearlo da un oggetto SQLAlchemy
 
 
-class UserCreate(BaseModel):
-    description: Optional[str] = ""
-=======
+class SkillCreate(BaseModel):
     """Richiesta: creare una nuova skill."""
     name: str                        # Nome obbligatorio
     description: Optional[str] = ""  # Descrizione opzionale
->>>>>>> mura
 
 
 # ============================================================
@@ -84,44 +81,11 @@ class UserSkillCreate(BaseModel):
 # MODELLI PER L'AUTENTICAZIONE (registrazione, login, token)
 # ============================================================
 class UserRegister(BaseModel):
-    """Modello per la registrazione di un nuovo utente."""
     """Richiesta: registrare un nuovo utente."""
     name: str
     email: str
     password: str
 
-class UserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    
-    id: int
-    name: str
-    email: str
-
-class UserSkillCreate(BaseModel):
-    user_id: int
-    skill_id: int
-    level: str # Es: "Principiante", "Intermedio", "Avanzato"
-    type: str
-
-class SessionRequestCreate(BaseModel):
-    sender_id: int
-    receiver_id: int
-    skill_id: int
-    message: str | None = None
-
-class SessionRequestResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    sender_id: int
-    receiver_id: int
-    skill_id: int
-    status: str
-    message: str
-
-class SkillCreate(BaseModel):
-    name: str
-    description: str | None = None
-    # 👇 Validatori base per evitare dati assurdi
     @field_validator("email")
     @classmethod
     def validate_email(cls, v):
@@ -137,6 +101,14 @@ class SkillCreate(BaseModel):
         if len(v) < 6:
             raise ValueError("La password deve avere almeno 6 caratteri")
         return v
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
 
 
 class UserLogin(BaseModel):
@@ -278,15 +250,7 @@ class FeedbackResponse(BaseModel):
 # MODELLI PER LA DASHBOARD (statistiche globali)
 # ============================================================
 class DashboardStats(BaseModel):
-<<<<<<< HEAD
-    """Modello per le statistiche della dashboard/home."""
-    total_users: int
-    total_skills: int
-    total_matches: int
-
-=======
     """Statistiche globali dell'app."""
     total_users: int    # Quanti utenti registrati
     total_skills: int   # Quante skill nel catalogo
     total_matches: int  # Quante associazioni utente-skill
->>>>>>> mura
