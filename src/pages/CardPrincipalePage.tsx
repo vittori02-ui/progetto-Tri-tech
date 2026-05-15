@@ -53,8 +53,8 @@ export function CardPrincipalePage() {
   // ============================================================
   useEffect(() => {
     if (!userId) {
-      // Se nessun ID, usa ID 1 come fallback
-      loadCardData(1);
+      setError("ID utente non specificato.");
+      setLoading(false);
       return;
     }
     loadCardData(Number(userId));
@@ -197,7 +197,9 @@ export function CardPrincipalePage() {
               {/* PULSANTE: naviga al profilo pubblico */}
               <Button
                 onClick={() => {
-                  if (profile) {
+                  if (userId) {
+                    navigate(`/public?id=${userId}`);
+                  } else if (profile) {
                     navigate(`/public?id=${profile.id}`);
                   } else {
                     navigate("/public");
