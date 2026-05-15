@@ -115,7 +115,7 @@ def search_users(
     current_user_id = None
     if authorization:
         try:
-            current_user_id = _get_user_id(authorization)
+            current_user_id = _get_user_id(authorization, db)
         except HTTPException:
             pass
 
