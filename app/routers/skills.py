@@ -46,7 +46,7 @@ def create_skill(skill_data: SkillCreate, db: Session = Depends(get_db)):
 @router.get("/my", response_model=list[UserSkillResponse])
 def get_my_skills(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Restituisce tutte le skill dell'utente loggato (offerte + cercate)."""
-    user_id = _get_user_id(authorization, db)  # Prende l'ID dall'hash
+    user_id = _get_user_id(authorization)  # Prende l'ID dal JWT
     # JOIN tra user_skills e skills per avere anche il nome della skill
     user_skills = db.query(UserSkill, Skill.name).join(Skill, UserSkill.skill_id == Skill.id).filter(UserSkill.user_id == user_id).all()
     result = []
@@ -61,7 +61,7 @@ def get_my_skills(authorization: Optional[str] = Header(None), db: Session = Dep
 @router.post("/my", response_model=UserSkillResponse, status_code=status.HTTP_201_CREATED)
 def add_my_skill(skill_data: UserSkillCreate, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Aggiunge una skill al profilo dell'utente (offerta o cercata). Se la skill non esiste nel catalogo, la crea."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
 
     # La skill esiste gia' nel catalogo globale?
     skill = db.query(Skill).filter(Skill.name == skill_data.skill_name).first()
@@ -86,7 +86,7 @@ def add_my_skill(skill_data: UserSkillCreate, authorization: Optional[str] = Hea
 @router.put("/my/{user_skill_id}", response_model=UserSkillResponse)
 def update_my_skill(user_skill_id: int, skill_data: UserSkillCreate, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Aggiorna il livello o il tipo (offered/wanted) di una skill del profilo."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
     user_skill = db.query(UserSkill).filter(UserSkill.id == user_skill_id, UserSkill.user_id == user_id).first()
     if not user_skill:
         raise HTTPException(status_code=404, detail="Skill non trovata nel tuo profilo.")
@@ -109,7 +109,7 @@ def update_my_skill(user_skill_id: int, skill_data: UserSkillCreate, authorizati
 @router.delete("/my/{user_skill_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_my_skill(user_skill_id: int, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Rimuove una skill dal profilo dell'utente (non cancella la skill dal catalogo globale)."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
     user_skill = db.query(UserSkill).filter(UserSkill.id == user_skill_id, UserSkill.user_id == user_id).first()
     if not user_skill:
         raise HTTPException(status_code=404, detail="Skill non trovata nel tuo profilo.")

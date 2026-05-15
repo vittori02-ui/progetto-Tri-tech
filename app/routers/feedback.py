@@ -22,7 +22,7 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 @router.post("/", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
 def create_feedback(fb_data: FeedbackCreate, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Lascia un voto (1-5) e un commento per una sessione completata."""
-    reviewer_id = _get_user_id(authorization, db)
+    reviewer_id = _get_user_id(authorization)
 
     # La sessione esiste ed e' completata?
     session_req = db.query(SessionRequest).filter(SessionRequest.id == fb_data.session_request_id).first()

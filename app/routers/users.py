@@ -115,7 +115,7 @@ def search_users(
     current_user_id = None
     if authorization:
         try:
-            current_user_id = _get_user_id(authorization, db)
+            current_user_id = _get_user_id(authorization)
         except HTTPException:
             pass
 
@@ -141,8 +141,17 @@ def search_users(
         if current_user_id and current_user_id != user.id:
             is_match = _check_match(current_user_id, user.id, db)
         result.append(UserSearchResponse(
-            id=user.id, name=user.name, bio=user.bio or "", location=user.location or "",
-            offered_skills=offered, wanted_skills=wanted, is_match=is_match,
+            id=user.id,
+            name=user.name,
+            email=user.email or "",
+            location=user.location or "",
+            level=user.level or "",
+            image_url=user.image_url or "",
+            offerte=[s.skill_name for s in offered],
+            cercate=[s.skill_name for s in wanted],
+            is_match=is_match,
+            offered_skills=offered,
+            wanted_skills=wanted,
         ))
     return result
 

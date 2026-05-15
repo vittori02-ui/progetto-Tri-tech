@@ -2,7 +2,6 @@
 # Tutti gli endpoint iniziano con /auth
 
 import os
-import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -10,17 +9,18 @@ from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.db_models import User
+from app.db_models import User, Skill, UserSkill
 from app.models import (
     UserRegister, UserLogin, TokenResponse,
-    UserMeResponse, UserProfileUpdate,
+    UserProfileUpdate,
 )
 
 import bcrypt
+from jose import JWTError, jwt
 
 
 # ============================================================
-# CONFIGURAZIONE JWT (COMMENTATO - NON ATTIVO)
+# CONFIGURAZIONE JWT (JSON Web Token)
 # ============================================================
 # COSA E' UN JWT (JSON Web Token)?
 # --------------------------------
@@ -48,17 +48,13 @@ import bcrypt
 # STRUTTURA DI UN JWT (3 parti separate da punti):
 #   Header.Algorithm.Signature
 #   es: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc123...
-#
-# PER ORA NON LO USIAMO: usiamo invece un semplice hash della password
-# come "chiave" di autenticazione. Il frontend salva l'hash e lo manda
-# come header per identificarsi.
 
-# SECRET_KEY = os.getenv(
-#     "SKILLSWAP_SECRET_KEY",
-#     "skillswap-secret-key-change-in-production-2026"
-# )
-# ALGORITHM = "HS256"
-# ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+SECRET_KEY = os.getenv(
+    "SKILLSWAP_SECRET_KEY",
+    "skillswap-secret-key-change-in-production-2026"
+)
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 
 # ============================================================
@@ -77,59 +73,44 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
-# ============================================================
-# FUNZIONI JWT (COMMENTATE - NON ATTIVE)
-# ============================================================
-# def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-#     """Crea un token JWT firmato con la SECRET_KEY.
-#     Il token contiene i dati (es. user_id) e una scadenza."""
-#     to_encode = data.copy()
-#     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-#     to_encode.update({"exp": expire})
-#     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-#
-#
-# def get_current_user_id(token: str) -> int:
-#     """Decodifica il JWT e verifica la firma.
-#     Se la firma e' valida e il token non e' scaduto,
-#     restituisce l'ID utente dal campo 'sub'."""
-#     cred_exc = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED,
-#         detail="Credenziali non valide o token scaduto.",
-#         headers={"WWW-Authenticate": "Bearer"},
-#     )
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         user_id = int(payload.get("sub"))
-#         if user_id is None:
-#             raise cred_exc
-#         return user_id
-#     except JWTError:
-#         raise cred_exc
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Crea un token JWT firmato con la SECRET_KEY.
+    Il token contiene i dati (es. user_id) e una scadenza."""
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_user_id_from_hash(auth_hash: str, db: Session) -> int:
-    """Trova l'utente confrontando l'hash ricevuto con quello nel database.
-    Se l'hash corrisponde, restituisce l'ID utente."""
-    user = db.query(User).filter(User.password == auth_hash).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Hash non valido. Utente non trovato.",
-        )
-    return user.id
+def get_current_user_id(token: str) -> int:
+    """Decodifica il JWT e verifica la firma.
+    Se la firma e' valida e il token non e' scaduto,
+    restituisce l'ID utente dal campo 'sub'."""
+    cred_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Credenziali non valide o token scaduto.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = int(payload.get("sub"))
+        if user_id is None:
+            raise cred_exc
+        return user_id
+    except JWTError:
+        raise cred_exc
 
 
-def _get_user_id(authorization: Optional[str], db: Session) -> int:
-    """Prende l'header 'Authorization: Bearer <hash>' e restituisce l'ID utente
-    confrontando l'hash con quello salvato nel database."""
+def _get_user_id(authorization: Optional[str]) -> int:
+    """Prende l'header 'Authorization: Bearer <jwt_token>' e restituisce l'ID utente
+    decodificando il token JWT."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token mancante o formato non valido. Usa: 'Authorization: Bearer <tuo_hash>'",
+            detail="Token mancante o formato non valido.",
         )
-    auth_hash = authorization.split(" ")[1]
-    return get_user_id_from_hash(auth_hash, db)
+    token = authorization.split(" ")[1]
+    return get_current_user_id(token)
 
 
 # ============================================================
@@ -137,7 +118,7 @@ def _get_user_id(authorization: Optional[str], db: Session) -> int:
 # ============================================================
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Crea un nuovo account. Hasha la password, salva l'utente e restituisce l'hash."""
+    """Crea un nuovo account. Hasha la password, salva l'utente e restituisce un JWT."""
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email gia' registrata.")
@@ -155,7 +136,8 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return TokenResponse(access_token=password_hash, user_id=new_user.id, name=new_user.name)
+    access_token = create_access_token(data={"sub": str(new_user.id)})
+    return TokenResponse(access_token=access_token, user_id=new_user.id, name=new_user.name)
 
 
 # ============================================================
@@ -163,7 +145,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
 # ============================================================
 @router.post("/login", response_model=TokenResponse)
 def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
-    """Controlla email e password. Se corrette, restituisce l'hash salvato nel DB."""
+    """Controlla email e password. Se corrette, restituisce un JWT."""
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email non trovata.")
@@ -171,29 +153,51 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
     if not verify_password(user_data.password, user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password sbagliata.")
 
-    return TokenResponse(access_token=user.password, user_id=user.id, name=user.name)
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return TokenResponse(access_token=access_token, user_id=user.id, name=user.name)
 
 
 # ============================================================
 # ENDPOINT: GET /auth/me  (PROFILO PERSONALE)
 # ============================================================
-@router.get("/me", response_model=UserMeResponse)
+@router.get("/me")
 def get_my_profile(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Restituisce i dati dell'utente loggato (nome, email, bio, ecc.)."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato.")
-    return user
+
+    user_skills = (
+        db.query(UserSkill, Skill.name)
+        .join(Skill, UserSkill.skill_id == Skill.id)
+        .filter(UserSkill.user_id == user_id)
+        .all()
+    )
+    skills = [
+        {"id": us.id, "skill_id": us.skill_id, "skill_name": sn, "level": us.level, "user_id": us.user_id, "type": us.type}
+        for us, sn in user_skills
+    ]
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "bio": user.bio or "",
+        "location": user.location or "",
+        "level": user.level or "",
+        "image_url": user.image_url or "",
+        "skills": skills,
+    }
 
 
 # ============================================================
 # ENDPOINT: PUT /auth/profile  (MODIFICA PROFILO)
 # ============================================================
-@router.put("/profile", response_model=UserMeResponse)
+@router.put("/profile")
 def update_my_profile(profile_data: UserProfileUpdate, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Modifica bio, citta' o nome. Solo i campi inviati vengono cambiati."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato.")
@@ -204,7 +208,21 @@ def update_my_profile(profile_data: UserProfileUpdate, authorization: Optional[s
         user.location = profile_data.location
     if profile_data.name is not None:
         user.name = profile_data.name
+    if profile_data.level is not None:
+        user.level = profile_data.level
+    if profile_data.image_url is not None:
+        user.image_url = profile_data.image_url
 
     db.commit()
     db.refresh(user)
-    return user
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "bio": user.bio or "",
+        "location": user.location or "",
+        "level": user.level or "",
+        "image_url": user.image_url or "",
+        "skills": [],
+    }

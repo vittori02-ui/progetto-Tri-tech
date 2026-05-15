@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine
 from app.db_models import Base
 from app.models import StatusResponse, SkillResponse, SkillCreate, UserRegister, UserResponse, UserSkillCreate
-from app.routers import auth, skills, users, requests, feedback
+from app.routers import auth, skills, users, request as requests, feedback, reports, blocks
 
 # ============================================================
 # LIFESPAN: COSA FARE ALL'AVVIO DEL SERVER
@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     # se la tabella esiste gia' e crea solo quelle nuove.
     Base.metadata.create_all(bind=engine)
 
-    yield  # Qui il server rimane in esecuzione finche' non lo spegni
+    yield  # Qui il server rimane in esecuzione finche' non lo spegni 
 
     # (Opzionale) Qui potresti chiudere connessioni, cancellare file temporanei, ecc.
 
@@ -59,6 +59,8 @@ app.include_router(skills.router)   # /skills/ (catalogo) e /skills/my (skill pe
 app.include_router(users.router)    # /users/public/{id}, /users/search, /users/stats
 app.include_router(requests.router) # /requests/ (richieste di sessione tra utenti)
 app.include_router(feedback.router) # /feedback/ (valutazioni post-sessione)
+app.include_router(reports.router)  # /reports/ (segnalazioni utenti - stub)
+app.include_router(blocks.router)   # /blocks/ (blocco utenti - stub)
 
 
 # ============================================================

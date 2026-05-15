@@ -132,6 +132,9 @@ class UserMeResponse(BaseModel):
     email: str                       # Solo qui si vede l'email!
     bio: Optional[str] = ""
     location: Optional[str] = ""
+    level: Optional[str] = ""
+    image_url: Optional[str] = ""
+    skills: list[UserSkillResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -141,6 +144,8 @@ class UserPublicResponse(BaseModel):
     name: str
     bio: Optional[str] = ""
     location: Optional[str] = ""
+    level: Optional[str] = ""
+    image_url: Optional[str] = ""
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -149,20 +154,26 @@ class UserProfileUpdate(BaseModel):
     bio: Optional[str] = None
     location: Optional[str] = None
     name: Optional[str] = None
+    level: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 # ============================================================
 # MODELLI PER LA RICERCA
 # ============================================================
 class UserSearchResponse(BaseModel):
-    """Risultato della ricerca utenti."""
+    """Risultato della ricerca utenti (formato compatibile con FE Antonino)."""
     id: int
     name: str
-    bio: Optional[str] = ""
+    email: Optional[str] = ""
     location: Optional[str] = ""
-    offered_skills: list[UserSkillResponse] = []  # Skill che l'utente offre
-    wanted_skills: list[UserSkillResponse] = []   # Skill che l'utente cerca
-    is_match: bool = False  # True = c'e' match reciproco (io offro quello che tu cerchi E viceversa)
+    level: Optional[str] = ""
+    image_url: Optional[str] = ""
+    offerte: list[str] = []          # Nomi delle skill offerte (array di stringhe)
+    cercate: list[str] = []          # Nomi delle skill cercate (array di stringhe)
+    is_match: bool = False
+    offered_skills: list[UserSkillResponse] = []  # Compatibilita' retroattiva
+    wanted_skills: list[UserSkillResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 

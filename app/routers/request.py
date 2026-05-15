@@ -1,4 +1,4 @@
-# requests.py = RICHIESTE DI SESSIONE TRA UTENTI
+# richiesta.py = RICHIESTE DI SESSIONE TRA UTENTI
 # Endpoint: /requests/
 # Cosa si puo' fare:
 #   POST /requests/         = inviare una richiesta
@@ -75,7 +75,7 @@ def _validate_transition(current_status: str, action: str):
 @router.post("/", response_model=SessionRequestResponse, status_code=status.HTTP_201_CREATED)
 def create_request(req_data: SessionRequestCreate, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Invia una richiesta di sessione a un altro utente per imparare/insegnare una skill."""
-    sender_id = _get_user_id(authorization, db)
+    sender_id = _get_user_id(authorization)
 
     # Non puoi inviare richieste a te stesso
     if sender_id == req_data.receiver_id:
@@ -110,7 +110,7 @@ def create_request(req_data: SessionRequestCreate, authorization: Optional[str] 
 @router.get("/", response_model=dict)
 def get_my_requests(tab: str = "received", authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Mostra le richieste ricevute, inviate o tutte. Con conteggio delle pending."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
 
     query = db.query(SessionRequest)
     if tab == "received":
@@ -134,7 +134,7 @@ def get_my_requests(tab: str = "received", authorization: Optional[str] = Header
 @router.patch("/{request_id}", response_model=SessionRequestResponse)
 def act_on_request(request_id: int, action_data: SessionRequestAction, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Esegue un'azione su una richiesta: accept, reject, cancel, confirm_completion."""
-    user_id = _get_user_id(authorization, db)
+    user_id = _get_user_id(authorization)
     action = action_data.action
 
     req = db.query(SessionRequest).filter(SessionRequest.id == request_id).first()

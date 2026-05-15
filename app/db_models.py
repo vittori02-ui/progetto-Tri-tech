@@ -36,6 +36,8 @@ class User(Base):
     password = Column(String, nullable=False)                # Password (hashata con bcrypt, mai in chiaro)
     bio = Column(String, default="", nullable=True)          # Biografia personale (es. "Sviluppatore Python")
     location = Column(String, default="", nullable=True)     # Citta' (es. "Milano")
+    level = Column(String, default="", nullable=True)        # Livello utente (es. "Principiante", "Intermedio", "Avanzato")
+    image_url = Column(String, default="", nullable=True)    # URL immagine profilo
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))  # Data di registrazione
 
     # "Relazioni": non sono colonne vere, ma collegamenti comodi.
