@@ -110,7 +110,7 @@ export function RegisterPage() {
                 <Input
                   className="border-orange-500/70 bg-black pl-10 text-white placeholder:text-zinc-500 focus-visible:ring-orange-500"
                   type="password"
-                  minLength={8}
+                  minLength={6}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Almeno 8 caratteri"

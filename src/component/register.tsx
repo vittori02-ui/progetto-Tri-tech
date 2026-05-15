@@ -83,7 +83,7 @@ export default function Register() {
                 <Input
                   className="border-orange-500/70 bg-black px-10 text-white placeholder:text-zinc-500 focus-visible:ring-orange-500"
                   type={showPassword ? "text" : "password"}
-                  minLength={8}
+                  minLength={6}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Almeno 8 caratteri"
