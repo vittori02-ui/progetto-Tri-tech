@@ -27,7 +27,7 @@ class SkillResponse(BaseModel):
 class SkillCreate(BaseModel):
     """Modello per creare una nuova skill."""
     name: str
-<<<<<<< Updated upstream
+
     description: str|None="Inserisci qualcosa"
     model_config = ConfigDict(from_attributes=True) #riga importante dice a pydantic
                                                     #dice questi dati non vengono  da un dizionario
@@ -35,7 +35,6 @@ class SkillCreate(BaseModel):
                                                     #fare una cartella dove ci sono i controller per far vedere i get al frontend
 
 class UserCreate(BaseModel):
-=======
     description: Optional[str] = ""
 
 
@@ -84,12 +83,10 @@ class UserSkillCreate(BaseModel):
 # --- Modelli per l'Autenticazione ---
 class UserRegister(BaseModel):
     """Modello per la registrazione di un nuovo utente."""
->>>>>>> Stashed changes
     name: str
     email: str
     password: str
 
-<<<<<<< Updated upstream
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
@@ -121,7 +118,6 @@ class SessionRequestResponse(BaseModel):
 class SkillCreate(BaseModel):
     name: str
     description: str | None = None
-=======
     # 👇 Validatori base per evitare dati assurdi
     @field_validator("email")
     @classmethod
@@ -209,4 +205,4 @@ class DashboardStats(BaseModel):
     total_users: int
     total_skills: int
     total_matches: int
->>>>>>> Stashed changes
+

@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 from app import db_models
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,23 +6,26 @@ from app.models import StatusResponse, SkillResponse, UserCreate, UserResponse, 
 from app.database import get_db, engine
 from app.db_models import Skill
 from app.models import StatusResponse, SkillResponse, SkillCreate, UserCreate, UserResponse, UserSkillCreate
-=======
 # ============================================================
 # main.py - Entry point dell'applicazione FastAPI
 # ============================================================
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
->>>>>>> Stashed changes
-
 # Import del database e modelli (engine serve per create_all)
 from app.database import engine
 from app.db_models import Base
-
 # Import dei router
 from app.routers import auth, skills, users
+from fastapi.middleware.cors import CORSMiddleware
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ============================================================
 # Lifespan: codice eseguito all'avvio e allo spegnimento
@@ -108,7 +110,6 @@ app.include_router(users.router)  # /users/public/{id}, /users/search, /users/st
 # ============================================================
 @app.get("/", response_model=dict)
 def root():
-<<<<<<< Updated upstream
     #ritorna lo stato se il server è acceso e funzionante
     return StatusResponse(status="ok", message="SkillSwap API is running")
 
@@ -209,15 +210,14 @@ def seed_skills(db: Session = Depends(get_db)):
     
     db.commit()
     return {"message": "Database popolato con le skill iniziali"}
-"""
-=======
     """
+"""
     Endpoint di health check.
     Restituisce lo stato del server per verificare che sia in esecuzione.
-    """
+    
     return {
         "status": "ok",
         "message": "SkillSwap API is running",
         "version": "0.2.0",
     }
->>>>>>> Stashed changes
+"""
